@@ -11,6 +11,10 @@ const promises = [];
 export function specs(specs) {
   let storyName = specs();
 
+  // TODO: we've added basic support for async tests, but this 
+  // requires the test to implement a promise mechanism.
+  // A better way to do this is to figure out how to support the 
+  // 'done' callback that 'it' conventionally accepts.
   Promise.all(promises).then(() => {
     const channel = addons.getChannel();
     channel.emit(EVENT_ID, {results : results[storyName]});
