@@ -6,11 +6,19 @@ const results = {};
 const beforeEachFunc = {};
 const afterFunc = {};
 const afterEachFunc = {};
+const promises = [];
 
 export function specs(specs) {
   let storyName = specs();
-  const channel = addons.getChannel();
-  channel.emit(EVENT_ID, {results : results[storyName]});
+
+  Promise.all(promises).then(() => {
+    const channel = addons.getChannel();
+    channel.emit(EVENT_ID, {results : results[storyName]});
+  })
+  .catch(() => {
+    const channel = addons.getChannel();
+    channel.emit(EVENT_ID, {results : results[storyName]});
+  });
 }
 
 export const describe = (storyName, func) => {
@@ -30,11 +38,26 @@ export const describe = (storyName, func) => {
 export const it = function (desc, func) {
   if(beforeEachFunc[currentStory]) beforeEachFunc[currentStory]();
   try {
-    func();
-    results[currentStory].goodResults.push(desc);
+    const result = func();
+
+    if (result && result.then) {
+      const localCurrentStory = currentStory;
+      promises.push(result);
+
+      result
+        .then(() => {
+          results[localCurrentStory].goodResults.push(desc);
+        })
+        .catch(function(e) {
+          console.error(`${localCurrentStory} - ${desc} : ${e}`);
+          results[localCurrentStory].wrongResults.push({ spec: desc, message: e.message ? e.message : e });
+        });
+    } else {
+      results[currentStory].goodResults.push(desc);
+    }
   } catch (e) {
     console.error(`${currentStory} - ${desc} : ${e}`);
-    results[currentStory].wrongResults.push({spec: desc, message: e.message});
+    results[currentStory].wrongResults.push({ spec: desc, message: e.message });
   }
   if(afterEachFunc[currentStory]) afterEachFunc[currentStory]();
 };
